@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Competitive Arena Test Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn4ZEO3Qt/HFklTJBj/gBOV8G3HcKn4NfQblz" crossorigin="anonymous"></script>
+    <style>
+        /* CSS with enhancements for Arabic question display */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* أنماط شاشة التأكيد */
+        .confirmation-screen, .countdown-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .confirmation-box, .countdown-box {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .confirmation-box h2, .countdown-box h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        #confirm-ready-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-family: 'Tajawal', Arial, sans-serif;
+        }
+        
+        #confirm-ready-btn:hover {
+            background-color: #219653;
+        }
+        
+        #confirm-ready-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        /* أنماط العد التنازلي الكبير */
+        .big-countdown {
+             font-size: 80px;
+             font-weight: bold;
+             color: #3498db;
+             margin: 20px 0;
+             animation: pulse 1s infinite;
+         }
+         
+         @keyframes pulse {
+             0% { transform: scale(1); }
+             50% { transform: scale(1.1); }
+             100% { transform: scale(1); }
+         }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .second-player-timer {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            font-size: 1.2em;
+            animation: pulse 1s infinite alternate;
+        }
+        
+        .tiebreaker-result {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            animation: pulse 1s infinite alternate;
+            text-align: right;
+            direction: rtl;
+            font-size: 1.1em;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+            font-weight: bold;
+            text-align: right;
+            direction: rtl;
+        }
+        
+        .tiebreaker-result.success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .tiebreaker-result.error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .tiebreaker-info {
+            background-color: #e2f0fb;
+            border: 1px solid #b8daff;
+            color: #004085;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            direction: rtl;
+        }
+        @keyframes pulse {
+            from { box-shadow: 0 0 15px rgba(0, 0, 0, 0.3); }
+            to { box-shadow: 0 0 20px rgba(255, 193, 7, 0.8); }
+        }
+        #second-player-countdown {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .question-container {
+            display: none;
+        }
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .option-button {
+            text-align: right; /* Changed for Arabic text alignment */
+            padding: 12px;
+            transition: transform 0.2s ease;
+        }
+        .option-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .scores-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .score-card {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .my-score {
+            background-color: #d4edda;
+        }
+        .opponent-score {
+            background-color: #d1ecf1;
+        }
+        .game-over {
+            text-align: center;
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+        .timer-container {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .timer {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 20px;
+            min-width: 50px;
+        }
+        .timer.warning {
+            background-color: #ffc107;
+        }
+        .timer.danger {
+            background-color: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        /* New styles for Arabic question display */
+        .question-text {
+            font-size: 18px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        .question-info {
+            color: #6c757d;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-align: right;
+        }
+        .tiebreaker-header {
+            color: #d63384;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <!-- شاشة تأكيد المباراة -->
+    <div id="match-confirmation-screen" class="confirmation-screen" style="display: none;">
+        <div class="confirmation-box">
+            <h2>تم العثور على منافس!</h2>
+            <p>المنافس: <span id="opponent-confirmation-id"></span></p>
+            <p>هل أنت جاهز للمباراة؟</p>
+            <p>الوقت المتبقي: <span id="confirmation-countdown">10</span> ثوانٍ</p>
+            <button id="confirm-ready-btn">أنا جاهز!</button>
+        </div>
+    </div>
+    
+    <!-- شاشة العد التنازلي قبل بدء المباراة -->
+    <div id="pre-match-countdown-screen" class="countdown-screen" style="display: none;">
+        <div class="countdown-box">
+            <h2>المباراة ستبدأ قريباً</h2>
+            <p>استعد!</p>
+            <div class="big-countdown" id="pre-match-countdown">5</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h1>Competitive Arena Test Client</h1>
+            <p>Use this page to test the Socket.IO connection and game functionality</p>
+            <div class="status" id="connection-status">
+                Not connected to server
+            </div>
+        </div>
+        <div class="card" id="connection-card">
+            <h2>Connect to Server</h2>
+            <div class="form-group">
+                <label for="server-url">Server URL:</label>
+                <input type="text" id="server-url" value="http://localhost:3000" />
+            </div>
+            <button id="connect-btn">Connect</button>
+            <button id="disconnect-btn" disabled>Disconnect</button>
+        </div>
+        <div class="card" id="game-setup-card">
+            <h2>Game Setup</h2>
+            <div class="form-group">
+                <label for="student-id">Student ID:</label>
+                <input type="number" id="student-id" value="1" />
+            </div>
+            <div class="form-group">
+                <label for="course-id">Course ID:</label>
+                <input type="number" id="course-id" value="5" />
+                <small>Note: Both players must use the same Course ID</small>
+            </div>
+            <button id="ready-btn" disabled>Ready to Play</button>
+            <button id="cancel-ready-btn" disabled>Cancel Ready</button>
+        </div>
+        <div class="card question-container" id="question-card">
+            <h2>Current Question</h2>
+            <div class="scores-container">
+                <div class="score-card my-score">
+                    <h3>Your Score</h3>
+                    <div id="my-score">0</div>
+                </div>
+                <div class="score-card opponent-score">
+                    <h3>Opponent Score</h3>
+                    <div id="opponent-score">0</div>
+                </div>
+            </div>
+            <div id="timer-container" class="timer-container">
+                <div id="timer" class="timer">30</div>
+            </div>
+            <div id="question-text"></div>
+            <div class="options-container" id="options-container">
+                <!-- Options will be added here dynamically -->
+            </div>
+        </div>
+        <div class="card question-container" id="game-over-card">
+            <h2>Game Over</h2>
+            <div class="game-over" id="game-result"></div>
+            <div class="scores-container">
+                <div class="score-card my-score">
+                    <h3>Your Final Score</h3>
+                    <div id="my-final-score">0</div>
+                </div>
+                <div class="score-card opponent-score">
+                    <h3>Opponent Final Score</h3>
+                    <div id="opponent-final-score">0</div>
+                </div>
+            </div>
+            <button id="play-again-btn">Play Again</button>
+        </div>
+        <div class="card">
+            <h2>Event Log</h2>
+            <div class="log-container" id="log-container">
+                <!-- Log entries will be added here -->
+            </div>
+        </div>
+    </div>
+    <script>
+        // DOM Elements
+        const connectionStatus = document.getElementById('connection-status');
+        const serverUrlInput = document.getElementById('server-url');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const studentIdInput = document.getElementById('student-id');
+        const courseIdInput = document.getElementById('course-id');
+        const readyBtn = document.getElementById('ready-btn');
+        const cancelReadyBtn = document.getElementById('cancel-ready-btn');
+        const questionCard = document.getElementById('question-card');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const timerContainer = document.getElementById('timer-container');
+        const timer = document.getElementById('timer');
+        const myScore = document.getElementById('my-score');
+        const opponentScore = document.getElementById('opponent-score');
+        const gameOverCard = document.getElementById('game-over-card');
+        const gameResult = document.getElementById('game-result');
+        const myFinalScore = document.getElementById('my-final-score');
+        const opponentFinalScore = document.getElementById('opponent-final-score');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const logContainer = document.getElementById('log-container');
+
+        // Variables
+        let socket = null;
+        let studentId = null;
+        let opponentId = null;
+        let matchId = null;
+        let gameState = 'idle'; // idle, queuing, playing, completed
+        let timerInterval = null;
+
+        // Functions
+        function updateConnectionStatus(connected, message) {
+            connectionStatus.className = 'status ' + (connected ? 'success' : 'error');
+            connectionStatus.textContent = message;
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            readyBtn.disabled = !connected || gameState !== 'idle';
+            cancelReadyBtn.disabled = !connected || gameState !== 'queuing';
+        }
+
+        function addLogEntry(event, data) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            const eventName = document.createElement('strong');
+            eventName.textContent = `${timestamp} - ${event}: `;
+            logEntry.appendChild(eventName);
+            const eventData = document.createElement('span');
+            eventData.textContent = typeof data === 'object' ? JSON.stringify(data) : data;
+            logEntry.appendChild(eventData);
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function resetGame() {
+            gameState = 'idle';
+            studentId = parseInt(studentIdInput.value);
+            opponentId = null;
+            matchId = null;
+            questionCard.style.display = 'none';
+            gameOverCard.style.display = 'none';
+            readyBtn.disabled = !socket;
+            cancelReadyBtn.disabled = true;
+            
+            // إخفاء شاشات التأكيد والعد التنازلي
+            const matchConfirmationScreen = document.getElementById('match-confirmation-screen');
+            const preMatchCountdownScreen = document.getElementById('pre-match-countdown-screen');
+            if (matchConfirmationScreen) matchConfirmationScreen.style.display = 'none';
+            if (preMatchCountdownScreen) preMatchCountdownScreen.style.display = 'none';
+            
+            // إعادة تعيين حالة أزرار التأكيد
+            const confirmReadyBtn = document.getElementById('confirm-ready-btn');
+            if (confirmReadyBtn) {
+                confirmReadyBtn.disabled = false;
+                confirmReadyBtn.textContent = 'أنا جاهز!';
+            }
+            
+            // إعادة تعيين ألوان العد التنازلي
+            const confirmationCountdown = document.getElementById('confirmation-countdown');
+            const preMatchCountdown = document.getElementById('pre-match-countdown');
+            if (confirmationCountdown) {
+                confirmationCountdown.style.color = '';
+                confirmationCountdown.style.fontWeight = '';
+                confirmationCountdown.textContent = '10';
+            }
+            if (preMatchCountdown) {
+                preMatchCountdown.style.color = '#3498db';
+                preMatchCountdown.textContent = '5';
+            }
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function startTimer(duration) {
+            const timerElement = document.getElementById('timer');
+            if (!timerElement) return;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            let timeLeft = duration || 30;
+            timerElement.textContent = timeLeft;
+            timerElement.className = 'timer';
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+                if (timeLeft <= 10 && timeLeft > 5) {
+                    timerElement.className = 'timer warning';
+                } else if (timeLeft <= 5) {
+                    timerElement.className = 'timer danger';
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    const buttons = optionsContainer.querySelectorAll('button');
+                    buttons.forEach(button => button.disabled = true);
+                    addLogEntry('timer', 'Time expired for this question');
+                }
+            }, 1000);
+        }
+
+        function updateScores(scores) {
+            if (!scores || !studentId) {
+                addLogEntry('warning', 'Unable to update scores: missing data');
+                return;
+            }
+            try {
+                myScore.textContent = scores[studentId] || 0;
+                const opponentKey = Object.keys(scores).find(id => id != studentId);
+                opponentId = opponentKey;
+                opponentScore.textContent = opponentKey ? scores[opponentKey] : 0;
+            } catch (error) {
+                addLogEntry('error', `Error updating scores: ${error.message}`);
+                myScore.textContent = '0';
+                opponentScore.textContent = '0';
+            }
+        }
+
+        function displayQuestion(question) {
+            if (!question) {
+                addLogEntry('error', 'Received undefined question');
+                questionText.innerHTML = '<h3 class="status error">Error: Question data is missing</h3>';
+                optionsContainer.innerHTML = '<p>Unable to display question. Please wait for the next round or restart the game.</p>';
+                questionCard.style.display = 'block';
+                return;
+            }
+            const index = question.index ?? 0;
+            const text = question.text ?? 'Question text unavailable';
+            let questionHeader = '';
+            
+            // استخدام الحقول الموحدة لعرض معلومات السؤال
+            if (question.roundNumber && question.totalRounds) {
+                if (question.isTiebreaker) {
+                    // عرض خاص لجولة كاسر التعادل
+                    questionHeader = `<h3 class="tiebreaker-header">جولة كاسر التعادل - السؤال ${index + 1}</h3>`;
+                    questionHeader += `<p class="question-text">${text}</p>`;
+                } else {
+                    // عرض للأسئلة العادية مع معلومات الجولة
+                    const questionInRound = question.questionInRound || (index % (question.questionsPerRound || 5)) + 1;
+                    const questionsPerRound = question.questionsPerRound || 5;
+                    
+                    questionHeader = `<h3>الجولة ${question.roundNumber}/${question.totalRounds}</h3>`;
+                    questionHeader += `<p class="question-info">السؤال ${questionInRound}/${questionsPerRound}</p>`;
+                    questionHeader += `<p class="question-text">${text}</p>`;
+                }
+            } else {
+                // عرض بسيط في حالة عدم توفر معلومات الجولة
+                questionHeader = `<h3>السؤال ${index + 1}</h3>`;
+                questionHeader += `<p class="question-text">${text}</p>`;
+            }
+            
+            questionText.innerHTML = questionHeader;
+            
+            // عرض الإجابة الصحيحة إذا كانت متوفرة (للاختبار فقط)
+            if (question.correctAnswer) {
+                questionText.innerHTML += `<p style="color: teal; font-weight: bold;">الإجابة الصحيحة: ${question.correctAnswer}</p>`;
+            }
+            optionsContainer.innerHTML = '';
+            if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+                addLogEntry('error', 'Question options are missing or invalid');
+                optionsContainer.innerHTML = '<p class="status warning">No options available for this question.</p>';
+            } else {
+                question.options.forEach(option => {
+                    if (!option) return;
+                    const button = document.createElement('button');
+                    button.className = 'option-button';
+                    const optionText = option.text || 'Option text missing';
+                    button.textContent = optionText;
+                    button.onclick = () => submitAnswer(option.id, optionText);
+                    optionsContainer.appendChild(button);
+                });
+            }
+            questionCard.style.display = 'block';
+        }
+
+        function submitAnswer(answerId, answerText) {
+            if (!socket || gameState !== 'playing' || !matchId) return;
+            const buttons = optionsContainer.querySelectorAll('button');
+            buttons.forEach(button => button.disabled = true);
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // إزالة إشعار مهلة اللاعب الثاني إذا كان موجودًا
+            const secondPlayerTimerNotification = document.querySelector('.second-player-timer');
+            if (secondPlayerTimerNotification) {
+                secondPlayerTimerNotification.remove();
+            }
+            let questionIndex = 0;
+            try {
+                const h3Text = questionText.querySelector('h3')?.textContent || '';
+                const questionMatch = h3Text.match(/Question (\d+)/);
+                if (questionMatch && questionMatch[1]) {
+                    questionIndex = parseInt(questionMatch[1]) - 1;
+                }
+            } catch (error) {
+                addLogEntry('error', `Error extracting question index: ${error.message}`);
+            }
+            
+            // Print user's answer in terminal
+            console.log('User Answer:', { 
+                studentId: studentId, 
+                questionIndex: questionIndex, 
+                answerId: answerId,
+                answerText: answerText || 'Unknown'
+            });
+            
+            // Check if we know the correct answer
+            const correctAnswerElement = questionText.querySelector('p[style="color: teal; font-weight: bold;"]');
+            if (correctAnswerElement) {
+                const correctAnswer = correctAnswerElement.textContent.replace('Correct Answer: ', '');
+                console.log('Correct Answer:', correctAnswer);
+                console.log('Is Correct:', (answerText === correctAnswer) ? 'Yes' : 'No');
+            } else {
+                console.log('Correct answer not available in client');
+            }
+            
+            socket.emit('answer', {
+                matchId: matchId,
+                studentId: studentId,
+                questionIndex: questionIndex,
+                answer: answerId
+            });
+            addLogEntry('answer sent', { matchId, studentId, questionIndex, answer: answerId });
+        }
+
+        function displayGameOver(data) {
+            gameState = 'completed';
+            questionCard.style.display = 'none';
+            gameOverCard.style.display = 'block';
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            try {
+                if (!data) {
+                    addLogEntry('error', 'Received empty game_over data');
+                    gameResult.textContent = 'Game Over - No Result Data';
+                    gameResult.style.color = '#856404';
+                    myFinalScore.textContent = '0';
+                    opponentFinalScore.textContent = '0';
+                    return;
+                }
+                // استخدام حقل scores إذا كان موجودًا، وإلا استخدام yourScore وopponentScore
+                if (data.scores) {
+                    myFinalScore.textContent = data.scores[studentId] || 0;
+                    const opponentKey = Object.keys(data.scores).find(id => id != studentId);
+                    opponentFinalScore.textContent = opponentKey ? data.scores[opponentKey] : 0;
+                } else if (data.yourScore !== undefined && data.opponentScore !== undefined) {
+                    myFinalScore.textContent = data.yourScore;
+                    opponentFinalScore.textContent = data.opponentScore;
+                } else {
+                    addLogEntry('error', 'Game over data missing scores');
+                    myFinalScore.textContent = '0';
+                    opponentFinalScore.textContent = '0';
+                }
+                if (data.winnerId == studentId) {
+                    gameResult.textContent = '🎉 لقد فزت! 🎉';
+                    gameResult.style.color = '#155724';
+                } else if (data.winnerId && data.winnerId != studentId) {
+                    gameResult.textContent = '😢 لقد خسرت 😢';
+                    gameResult.style.color = '#721c24';
+                } else {
+                    gameResult.textContent = '🤝 تعادل! 🤝';
+                    gameResult.style.color = '#856404';
+                }
+                
+                // إضافة معلومات إضافية عن كاسر التعادل إذا كانت المباراة انتهت بجولة فاصلة
+                if (data.isTiebreaker) {
+                    const tiebreakerInfo = document.createElement('div');
+                    tiebreakerInfo.className = 'tiebreaker-info';
+                    tiebreakerInfo.innerHTML = '<p>انتهت المباراة بعد جولة كاسر التعادل</p>';
+                    gameOverCard.insertBefore(tiebreakerInfo, gameOverCard.querySelector('.status.info') || null);
+                }
+                if (data.laravelResponse) {
+                    const existingResponse = gameOverCard.querySelector('.status.info');
+                    if (existingResponse) existingResponse.remove();
+                    const laravelResponseDiv = document.createElement('div');
+                    laravelResponseDiv.className = 'status info';
+                    laravelResponseDiv.innerHTML = '<h3>Laravel Response:</h3><pre>' + JSON.stringify(data.laravelResponse, null, 2) + '</pre>';
+                    gameOverCard.appendChild(laravelResponseDiv);
+                }
+            } catch (error) {
+                addLogEntry('error', `Error displaying game over: ${error.message}`);
+                gameResult.textContent = 'Game Over - Error Displaying Results';
+                gameResult.style.color = '#721c24';
+            }
+        }
+
+        // Event Listeners
+        connectBtn.addEventListener('click', () => {
+            let serverUrl = serverUrlInput.value.trim();
+            if (!serverUrl) {
+                addLogEntry('error', 'Server URL is empty');
+                return;
+            }
+            if (!serverUrl.startsWith('http://') && !serverUrl.startsWith('https://')) {
+                serverUrl = 'http://' + serverUrl;
+            }
+            try {
+                if (socket) {
+                    socket.disconnect();
+                    socket = null;
+                }
+                let connectionTimeout = setTimeout(() => {
+                    addLogEntry('error', 'Connection timeout after 5 seconds');
+                    updateConnectionStatus(false, 'Connection timeout - server not responding');
+                }, 5000);
+                try {
+                    // Use hardcoded localhost URL
+                    const serverUrl = 'http://localhost:3000';
+                    console.log('Attempting to connect to hardcoded localhost URL:', serverUrl);
+                    
+                    socket = io(serverUrl, {
+                        transports: ['polling', 'websocket'],
+                        reconnection: true,
+                        reconnectionAttempts: 5,
+                        reconnectionDelay: 1000,
+                        timeout: 20000,
+                        autoConnect: true,
+                        forceNew: true
+                    });
+                    
+                    console.log('Socket.IO client initialized with hardcoded localhost URL');
+                    console.log('Socket.IO client version:', io.version);
+                    console.log('Socket.IO client options:', socket.io.opts);
+                } catch (initError) {
+                    console.error('Socket initialization error:', initError);
+                    addLogEntry('error', `Socket initialization error: ${initError.message}`);
+                    updateConnectionStatus(false, `Failed to initialize socket: ${initError.message}`);
+                    return;
+                }
+                socket.on('connect', () => {
+                    clearTimeout(connectionTimeout);
+                    updateConnectionStatus(true, `Connected to server (ID: ${socket.id})`);
+                    addLogEntry('connect', 'Connected to server');
+                    resetGame();
+                });
+                socket.on('disconnect', () => {
+                    updateConnectionStatus(false, 'Disconnected from server');
+                    addLogEntry('disconnect', 'Disconnected from server');
+                    resetGame();
+                });
+                socket.on('connect_error', (error) => {
+                    console.error('Socket.IO connect_error:', error);
+                    updateConnectionStatus(false, `Connection error: ${error.message}`);
+                    addLogEntry('connect_error', error.message);
+                });
+                socket.on('error', (error) => {
+                    console.error('Socket.IO error:', error);
+                    updateConnectionStatus(false, `Socket error: ${error.message}`);
+                    addLogEntry('socket_error', error.message);
+                });
+                socket.io.on('error', (error) => {
+                    console.error('Socket.IO manager error:', error);
+                    updateConnectionStatus(false, `IO Manager error: ${error.message}`);
+                    addLogEntry('io_error', error.message);
+                });
+                socket.io.on('reconnect_attempt', (attempt) => {
+                    console.log(`Socket.IO reconnect attempt: ${attempt}`);
+                    addLogEntry('reconnect_attempt', `Attempt: ${attempt}`);
+                });
+                socket.io.on('reconnect_error', (error) => {
+                    console.error('Socket.IO reconnect error:', error);
+                    addLogEntry('reconnect_error', error.message);
+                });
+                socket.io.on('reconnect_failed', () => {
+                    console.error('Socket.IO reconnect failed');
+                    updateConnectionStatus(false, 'Reconnection failed after all attempts');
+                    addLogEntry('reconnect_failed', 'Reconnection failed after all attempts');
+                });
+                socket.on('match_confirmation', (data) => {
+                    addLogEntry('match_confirmation', data);
+                    gameState = 'confirming';
+                    matchId = data?.matchId;
+                    opponentId = data?.opponentId;
+                    readyBtn.disabled = true;
+                    cancelReadyBtn.disabled = true;
+                    
+                    // عرض شاشة تأكيد المباراة
+                    const matchConfirmationScreen = document.getElementById('match-confirmation-screen');
+                    const opponentConfirmationId = document.getElementById('opponent-confirmation-id');
+                    const confirmationCountdown = document.getElementById('confirmation-countdown');
+                    const confirmReadyBtn = document.getElementById('confirm-ready-btn');
+                    
+                    // تعيين معرف المنافس
+                    opponentConfirmationId.textContent = data.opponentId;
+                    
+                    // تعيين وقت العد التنازلي
+                    confirmationCountdown.textContent = data.countdownSeconds || 10;
+                    
+                    // عرض شاشة التأكيد
+                    matchConfirmationScreen.style.display = 'flex';
+                    
+                    // بدء العد التنازلي للتأكيد
+                    let countdownTime = data.countdownSeconds || 10;
+                    const countdownInterval = setInterval(() => {
+                        countdownTime--;
+                        confirmationCountdown.textContent = countdownTime;
+                        if (countdownTime <= 3) {
+                            confirmationCountdown.style.color = 'red';
+                            confirmationCountdown.style.fontWeight = 'bold';
+                        }
+                        }
+                        if (countdownTime <= 0) {
+                            clearInterval(countdownInterval);
+                        }
+                    }, 1000);
+                    
+                    // إضافة معالج حدث لزر التأكيد
+                    const confirmReadyBtn = document.getElementById('confirm-ready-btn');
+                    confirmReadyBtn.addEventListener('click', () => {
+                        socket.emit('player_ready', { matchId, studentId });
+                        confirmReadyBtn.disabled = true;
+                        confirmReadyBtn.textContent = 'تم التأكيد';
+                    });
+                });
+                
+                socket.on('countdown_started', (data) => {
+                    addLogEntry('countdown_started', data);
+                    
+                    // إخفاء شاشة التأكيد
+                    const matchConfirmationScreen = document.getElementById('match-confirmation-screen');
+                    matchConfirmationScreen.style.display = 'none';
+                    
+                    // عرض شاشة العد التنازلي
+                    const preMatchCountdownScreen = document.getElementById('pre-match-countdown-screen');
+                    const preMatchCountdown = document.getElementById('pre-match-countdown');
+                    
+                    // تعيين وقت العد التنازلي
+                    preMatchCountdown.textContent = data.seconds || 5;
+                    
+                    // عرض شاشة العد التنازلي
+                    preMatchCountdownScreen.style.display = 'flex';
+                    
+                    // بدء العد التنازلي
+                    let countdownTime = data.seconds || 5;
+                    const countdownInterval = setInterval(() => {
+                        countdownTime--;
+                        preMatchCountdown.textContent = countdownTime;
+                        if (countdownTime <= 2) {
+                            preMatchCountdown.style.color = 'red';
+                        }
+                        if (countdownTime <= 0) {
+                            clearInterval(countdownInterval);
+                            // إخفاء شاشة العد التنازلي بعد انتهاء العد
+                            setTimeout(() => {
+                                preMatchCountdownScreen.style.display = 'none';
+                                // إعادة تعيين لون العد التنازلي للمرة القادمة
+                                preMatchCountdown.style.color = '#3498db';
+                            }, 500);
+                        }
+                    }, 1000);
+                });
+                
+                socket.on('match_cancelled', (data) => {
+                    addLogEntry('match_cancelled', data);
+                    
+                    // إخفاء شاشة التأكيد والعد التنازلي
+                    const matchConfirmationScreen = document.getElementById('match-confirmation-screen');
+                    const preMatchCountdownScreen = document.getElementById('pre-match-countdown-screen');
+                    matchConfirmationScreen.style.display = 'none';
+                    preMatchCountdownScreen.style.display = 'none';
+                    
+                    // إعادة تعيين لون العد التنازلي للمرة القادمة
+                    const confirmationCountdown = document.getElementById('confirmation-countdown');
+                    const preMatchCountdown = document.getElementById('pre-match-countdown');
+                    confirmationCountdown.style.color = '';
+                    confirmationCountdown.style.fontWeight = '';
+                    preMatchCountdown.style.color = '#3498db';
+                    
+                    // عرض رسالة إلغاء المباراة
+                    const notification = document.createElement('div');
+                    notification.className = 'status warning';
+                    notification.textContent = data.message || 'تم إلغاء المباراة - يرجى المحاولة مرة أخرى';
+                    document.body.appendChild(notification);
+                    
+                    // إزالة الإشعار بعد 5 ثوانٍ
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 5000);
+                    
+                    resetGame();
+                });
+                
+                socket.on('match_started', (data) => {
+                    addLogEntry('match_started', data);
+                    gameState = 'playing';
+                    matchId = data?.matchId;
+                    readyBtn.disabled = true;
+                    cancelReadyBtn.disabled = true;
+                    if (!data) {
+                        addLogEntry('error', 'Received empty match_started data');
+                        displayQuestion(null);
+                        return;
+                    }
+                    try {
+                        displayQuestion({
+                            index: data.questionIndex,
+                            text: data.questionText,
+                            roundNumber: data.roundNumber,
+                            totalRounds: data.totalRounds,
+                            questionInRound: data.questionInRound,
+                            questionsPerRound: data.questionsPerRound,
+                            options: data.options || []
+                        });
+                        startTimer(data.timerDuration || 30);
+                    } catch (error) {
+                        addLogEntry('error', `Error displaying question: ${error.message}`);
+                    }
+                });
+                socket.on('next_question', (data) => {
+                    addLogEntry('next_question', data);
+                    if (!data) {
+                        addLogEntry('error', 'Received empty next_question data');
+                        displayQuestion(null);
+                        return;
+                    }
+                    try {
+                        displayQuestion({
+                            index: data.questionIndex,
+                            text: data.questionText,
+                            roundNumber: data.roundNumber,
+                            totalRounds: data.totalRounds,
+                            questionInRound: data.questionInRound,
+                            questionsPerRound: data.questionsPerRound,
+                            options: data.options || []
+                        });
+                        startTimer(data.timerDuration || 30);
+                        if (data.scores) updateScores(data.scores);
+                    } catch (error) {
+                        addLogEntry('error', `Error displaying next question: ${error.message}`);
+                    }
+                });
+                socket.on('game_over', (data) => {
+                    addLogEntry('game_over', data);
+                    displayGameOver(data);
+                });
+                socket.on('tiebreaker_result', (data) => {
+                    addLogEntry('tiebreaker_result', data);
+                    // عرض نتيجة كاسر التعادل
+                    const notification = document.createElement('div');
+                    notification.className = 'status info tiebreaker-result';
+                    
+                    if (data.winnerId === studentId) {
+                        notification.innerHTML = '<h3>نتيجة كاسر التعادل</h3><p>🎉 لقد فزت في جولة كاسر التعادل! 🎉</p>';
+                        notification.className = 'status success tiebreaker-result';
+                    } else if (data.winnerId && data.winnerId !== studentId) {
+                        notification.innerHTML = '<h3>نتيجة كاسر التعادل</h3><p>😢 لقد خسرت في جولة كاسر التعادل 😢</p>';
+                        notification.className = 'status error tiebreaker-result';
+                    } else {
+                        // تعادل أو لم يتم تحديد الفائز
+                        notification.innerHTML = '<h3>نتيجة كاسر التعادل</h3><p>🤝 تعادل في جولة كاسر التعادل! 🤝</p>';
+                        if (data.reason) {
+                            notification.innerHTML += `<p>السبب: ${data.reason}</p>`;
+                        }
+                    }
+                    
+                    document.body.appendChild(notification);
+                    // إزالة الإشعار بعد 5 ثوانٍ أو عند انتهاء المباراة
+                    setTimeout(() => {
+                        const resultNotification = document.querySelector('.tiebreaker-result');
+                        if (resultNotification) resultNotification.remove();
+                    }, 5000);
+                });
+                
+                socket.on('opponent_disconnected', (data) => {
+                    addLogEntry('opponent_disconnected', data);
+                    const notification = document.createElement('div');
+                    notification.className = 'status success';
+                    notification.textContent = data.message || 'Your opponent has disconnected. You win!';
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.remove(), 5000);
+                });
+                socket.on('queue_timeout', (data) => {
+                    addLogEntry('queue_timeout', data);
+                    alert(`Queue timeout: ${data.message}`);
+                    resetGame();
+                });
+                socket.on('error', (data) => {
+                    addLogEntry('error', data);
+                    alert(`Error: ${data.message}`);
+                });
+                socket.on('cancel_confirmed', (data) => {
+                    addLogEntry('cancel_confirmed', data);
+                    resetGame();
+                });
+                socket.on('prompt_answer', (data) => {
+                    addLogEntry('prompt_answer', data);
+                    // عرض مهلة الـ 5 ثواني للاعب الثاني بوضوح
+                    const secondPlayerTimeLimit = data.secondPlayerTimeLimit || 5;
+                    const isTiebreaker = data.isTiebreaker || false;
+                    
+                    // إزالة أي إشعار سابق إذا كان موجودًا
+                    const existingNotification = document.querySelector('.second-player-timer');
+                    if (existingNotification) {
+                        existingNotification.remove();
+                    }
+                    
+                    const notification = document.createElement('div');
+                    notification.className = 'status warning second-player-timer';
+                    
+                    if (isTiebreaker) {
+                        notification.innerHTML = `<h3>جولة فاصلة - أنت اللاعب الثاني!</h3><p>لديك <span id="second-player-countdown">${secondPlayerTimeLimit}</span> ثوانٍ للإجابة</p>`;
+                    } else {
+                        notification.innerHTML = `<h3>أنت اللاعب الثاني!</h3><p>لديك <span id="second-player-countdown">${secondPlayerTimeLimit}</span> ثوانٍ للإجابة</p>`;
+                    }
+                    
+                    document.body.appendChild(notification);
+                    
+                    // بدء العد التنازلي للاعب الثاني
+                    let secondPlayerTimeLeft = secondPlayerTimeLimit;
+                    const secondPlayerInterval = setInterval(() => {
+                        secondPlayerTimeLeft--;
+                        const countdownElement = document.getElementById('second-player-countdown');
+                        if (countdownElement) {
+                            countdownElement.textContent = secondPlayerTimeLeft;
+                            if (secondPlayerTimeLeft <= 2) {
+                                countdownElement.style.color = 'red';
+                                countdownElement.style.fontWeight = 'bold';
+                            }
+                        }
+                        if (secondPlayerTimeLeft <= 0) {
+                            clearInterval(secondPlayerInterval);
+                            const timerNotification = document.querySelector('.second-player-timer');
+                            if (timerNotification) {
+                                timerNotification.remove();
+                            }
+                        }
+                    }, 1000);
+                    
+                    // إزالة الإشعار عند الإجابة أو بعد انتهاء المهلة
+                    setTimeout(() => {
+                        const timerNotification = document.querySelector('.second-player-timer');
+                        if (timerNotification) {
+                            timerNotification.remove();
+                        }
+                        clearInterval(secondPlayerInterval);
+                    }, secondPlayerTimeLimit * 1000);
+                });
+                socket.on('tiebreaker', (data) => {
+                    addLogEntry('tiebreaker', data);
+                    if (!data) {
+                        addLogEntry('error', 'Received empty tiebreaker data');
+                        displayQuestion(null);
+                        return;
+                    }
+                    try {
+                        // استخدام نفس هيكل البيانات الموحد لجميع الأحداث
+                        displayQuestion({
+                            index: data.questionIndex,
+                            text: data.questionText,
+                            roundNumber: data.roundNumber,
+                            totalRounds: data.totalRounds,
+                            questionInRound: data.questionInRound || 1,
+                            questionsPerRound: data.questionsPerRound || 1,
+                            isTiebreaker: true, // تحديد أن هذا سؤال كاسر للتعادل
+                            options: data.options || [],
+                            correctAnswer: data.correctAnswer
+                        });
+                        startTimer(data.timerDuration || 30);
+                        
+                        // تحديث النتائج إذا كانت متوفرة
+                        if (data.scores) updateScores(data.scores);
+                    } catch (error) {
+                        addLogEntry('error', `Error displaying tiebreaker question: ${error.message}`);
+                    }
+                });
+            } catch (error) {
+                updateConnectionStatus(false, `Error: ${error.message}`);
+                addLogEntry('connection attempt failed', error.message);
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        });
+
+        readyBtn.addEventListener('click', () => {
+            if (!socket) return;
+            studentId = parseInt(studentIdInput.value);
+            const courseId = parseInt(courseIdInput.value);
+            if (isNaN(studentId) || isNaN(courseId) || studentId <= 0 || courseId <= 0) {
+                alert('Student ID and Course ID must be valid positive integers');
+                return;
+            }
+            gameState = 'queuing';
+            readyBtn.disabled = true;
+            cancelReadyBtn.disabled = false;
+            socket.emit('ready', { studentId: studentId, courseId: courseId });
+            addLogEntry('ready sent', { studentId, courseId });
+        });
+
+        cancelReadyBtn.addEventListener('click', () => {
+            if (!socket || gameState !== 'queuing') return;
+            socket.emit('cancel_ready');
+            addLogEntry('cancel_ready sent', {});
+        });
+
+        playAgainBtn.addEventListener('click', () => {
+            resetGame();
+        });
+
+        // Initialize
+        resetGame();
+    </script>
+</body>
+</html>

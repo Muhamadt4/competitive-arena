@@ -1,0 +1,39 @@
+{
+  "server": {
+    "url": "https://competitive-arena.example.com",
+    "socketPath": "/socket.io",
+    "apiPath": "/api"
+  },
+  "game": {
+    "questionTimeLimit": 20,
+    "tiebreakerTimeLimit": 30,
+    "maxQuestions": 5
+  },
+  "endpoints": {
+    "auth": "/auth",
+    "profile": "/profile",
+    "leaderboard": "/leaderboard"
+  },
+  "socketEvents": {
+    "clientToServer": {
+      "ready": "ready",
+      "cancelReady": "cancel_ready",
+      "answer": "answer"
+    },
+    "serverToClient": {
+      "matchStarted": "match_started",
+      "nextQuestion": "next_question",
+      "promptAnswer": "prompt_answer",
+      "tiebreaker": "tiebreaker",
+      "gameOver": "game_over",
+      "opponentLeft": "opponent_left",
+      "queueTimeout": "queue_timeout",
+      "error": "error"
+    }
+  },
+  "development": {
+    "mockServer": false,
+    "logLevel": "info",
+    "enableDebugEvents": false
+  }
+}
