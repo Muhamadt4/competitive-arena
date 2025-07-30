@@ -108,7 +108,7 @@ async function startMatchIfPossible(
       setTimeout(() => {
         startCountdown(io, match, firstQuestion);
       }, 4000);
-    }, 500); // انتظار 1.5 ثانية بعد رسالة العثور على خصم
+    }, 1000); // انتظار 1.5 ثانية بعد رسالة العثور على خصم
 
     matchService.updateMatch(match.id, match);
   } catch (err) {
