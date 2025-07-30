@@ -107,7 +107,7 @@ async function endMatch(io, match, winnerId) {
       current_round: match.isTiebreaker ? "tiebreaker round" : match.currentRound,
       total_rounds: match.rounds,
       scores: match.scores,
-      laravelResponse
+      laravelResponse // Include the full Laravel response
     };
     
     // Prepare standardized game_over data for player 2
@@ -119,7 +119,7 @@ async function endMatch(io, match, winnerId) {
       current_round: match.isTiebreaker ? "tiebreaker round" : match.currentRound,
       total_rounds: match.rounds,
       scores: match.scores,
-      laravelResponse
+      laravelResponse // Include the full Laravel response
     };
     
     // Send game_over event with standardized data to both players

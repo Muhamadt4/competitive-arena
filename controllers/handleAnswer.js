@@ -78,7 +78,7 @@ async function handleAnswer(io, socket, data) {
         time_duration: Math.floor(
           (QUESTION_TIMER_MS - (Date.now() - match.questionStartTime)) / 1000
         ),
-        timeRemaining: 5,
+        timeRemaining: 10,
       });
 
       if (match.secondPlayerTimeout) {
@@ -89,7 +89,7 @@ async function handleAnswer(io, socket, data) {
         if (!match.hasAnswered.has(opponent.studentId)) {
           proceedToNextQuestion(io, match);
         }
-      }, 5000);
+      }, 10000);
     } else if (
       playerId !== match.firstResponder &&
       !match.hasAnswered.has(playerId)
@@ -128,6 +128,18 @@ async function proceedToNextQuestion(io, match) {
     match.secondPlayerTimeout = null;
   }
 
+  // Show answer results for 4 seconds before proceeding
+  showAnswerResults(io, match);
+
+  setTimeout(() => {
+    moveToNextQuestion(io, match);
+  }, 4000);
+}
+
+/**
+ * Move to the next question after showing results
+ */
+async function moveToNextQuestion(io, match) {
   match.currentIndex++;
   match.firstResponder = null;
   match.firstResponderAnswer = null;
@@ -136,8 +148,10 @@ async function proceedToNextQuestion(io, match) {
   // Calculate the current round based on the current index
   // Round 1 = questions 0-4, Round 2 = questions 5-9, etc.
   const newRound = Math.floor(match.currentIndex / match.questionsPerRound) + 1;
-  
-  console.log(`📊 ROUND CALCULATION | currentIndex: ${match.currentIndex} | questionsPerRound: ${match.questionsPerRound} | calculated newRound: ${newRound} | current round: ${match.currentRound}`);
+
+  console.log(
+    `📊 ROUND CALCULATION | currentIndex: ${match.currentIndex} | questionsPerRound: ${match.questionsPerRound} | calculated newRound: ${newRound} | current round: ${match.currentRound}`
+  );
 
   // Always update the round based on the current index
   if (match.currentIndex < match.totalQuestions) {
@@ -145,7 +159,9 @@ async function proceedToNextQuestion(io, match) {
       match.currentRound = newRound;
       console.log(`🔄 Moving to round ${match.currentRound}`);
     } else {
-      console.log(`🔄 Staying in round ${match.currentRound} (no change needed)`);
+      console.log(
+        `🔄 Staying in round ${match.currentRound} (no change needed)`
+      );
     }
   } else {
     console.log(`⚠️ Reached end of questions, not updating round`);
@@ -153,14 +169,72 @@ async function proceedToNextQuestion(io, match) {
 
   // Calculate which question we're on within the current round
   const questionInRound = (match.currentIndex % match.questionsPerRound) + 1;
-  console.log(`📋 Question ${questionInRound}/${match.questionsPerRound} in round ${match.currentRound}/${match.rounds}`);
-
+  console.log(
+    `📋 Question ${questionInRound}/${match.questionsPerRound} in round ${match.currentRound}/${match.rounds}`
+  );
 
   // Log for all rounds, including tiebreaker
   if (match.isTiebreaker) {
-    console.log(`📋 TIEBREAKER QUESTION ${questionInRound}/${match.questionsPerRound}`);
+    console.log(
+      `📋 TIEBREAKER QUESTION ${questionInRound}/${match.questionsPerRound}`
+    );
   } else {
-    console.log(`📋 ROUND ${match.currentRound}/${match.rounds} | QUESTION ${questionInRound}/${match.questionsPerRound}`);
+    console.log(
+      `📋 ROUND ${match.currentRound}/${match.rounds} | QUESTION ${questionInRound}/${match.questionsPerRound}`
+    );
+  }
+
+  // إظهار شاشة الفاصل بين الجولات إذا انتهت جولة
+  const questionInCurrentRound =
+    ((match.currentIndex - 1) % match.questionsPerRound) + 1;
+  const isRoundEnd =
+    questionInCurrentRound === match.questionsPerRound &&
+    match.currentIndex < match.totalQuestions;
+
+  if (isRoundEnd) {
+    // إظهار شاشة الفاصل مع السؤال السابق والإجابة الصحيحة
+    const previousQuestion = match.questions[match.currentIndex - 1];
+    let correctAnswerText = "Unknown";
+    if (previousQuestion.options && Array.isArray(previousQuestion.options)) {
+      const correctOption = previousQuestion.options.find(
+        (option) => option && option.id === previousQuestion.correctAnswer
+      );
+      if (correctOption && correctOption.text) {
+        correctAnswerText = correctOption.text;
+      }
+    }
+
+    const roundBreakData1 = {
+      previousQuestion: previousQuestion.question || "Question unavailable",
+      correctAnswer: correctAnswerText,
+      currentRound: match.currentRound,
+      totalRounds: match.rounds,
+      scores: {
+        yourScore: match.scores[match.player1.studentId] || 0,
+        opponentScore: match.scores[match.player2.studentId] || 0,
+      },
+    };
+
+    const roundBreakData2 = {
+      previousQuestion: previousQuestion.question || "Question unavailable",
+      correctAnswer: correctAnswerText,
+      currentRound: match.currentRound,
+      totalRounds: match.rounds,
+      scores: {
+        yourScore: match.scores[match.player2.studentId] || 0,
+        opponentScore: match.scores[match.player1.studentId] || 0,
+      },
+    };
+
+    io.to(match.player1.socket.id).emit("round_break", roundBreakData1);
+    io.to(match.player2.socket.id).emit("round_break", roundBreakData2);
+
+    // انتظار 4 ثوانٍ ثم إظهار العد التنازلي للجولة التالية
+    setTimeout(() => {
+      startNextRoundCountdown(io, match);
+    }, 4000);
+
+    return;
   }
 
   // Check if there are more questions in the match
@@ -205,8 +279,12 @@ async function proceedToNextQuestion(io, match) {
       : [];
 
     // Use the standardized data structure for next_question event
-    const baseQuestionData = prepareQuestionData(match, currentQuestion, match.isTiebreaker || false);
-    
+    const baseQuestionData = prepareQuestionData(
+      match,
+      currentQuestion,
+      match.isTiebreaker || false
+    );
+
     // Add player 1 specific scores
     const questionData = {
       ...baseQuestionData,
@@ -215,9 +293,10 @@ async function proceedToNextQuestion(io, match) {
         opponentScore: match.scores[match.player2.studentId] || 0,
       },
     };
-    
-    console.log(`📢 SENDING NEXT QUESTION | Round: ${baseQuestionData.current_round}/${baseQuestionData.total_rounds} | Question: ${baseQuestionData.questionInRound}/${baseQuestionData.questionsPerRound}`);
 
+    console.log(
+      `📢 SENDING NEXT QUESTION | Round: ${baseQuestionData.current_round}/${baseQuestionData.total_rounds} | Question: ${baseQuestionData.questionInRound}/${baseQuestionData.questionsPerRound}`
+    );
 
     io.to(match.player1.socket.id).emit("next_question", questionData);
 
@@ -281,16 +360,22 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
   if (match.tiebreakerAnswered) return;
 
   // Log the current scores before processing the tiebreaker answer
-  console.log(`📊 TIEBREAKER SCORES | Player 1: ${match.scores[player1Id]} | Player 2: ${match.scores[player2Id]}`);
+  console.log(
+    `📊 TIEBREAKER SCORES | Player 1: ${match.scores[player1Id]} | Player 2: ${match.scores[player2Id]}`
+  );
 
   if (playerId === player1Id) {
     // Apply the same scoring logic as regular rounds
     if (isCorrect) {
       // First responder gets 2 points for correct answer
       match.scores[player1Id] += 2;
-      console.log(`🏆 TIEBREAKER | Player 1 answered correctly (+2 points) - Player 1 wins!`);
-      console.log(`📊 UPDATED SCORES | Player 1: ${match.scores[player1Id]} | Player 2: ${match.scores[player2Id]}`);
-      
+      console.log(
+        `🏆 TIEBREAKER | Player 1 answered correctly (+2 points) - Player 1 wins!`
+      );
+      console.log(
+        `📊 UPDATED SCORES | Player 1: ${match.scores[player1Id]} | Player 2: ${match.scores[player2Id]}`
+      );
+
       // Include scores in the tiebreaker_result event
       io.to(match.player1.socket.id).emit("tiebreaker_result", {
         winnerId: player1Id,
@@ -299,8 +384,8 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
         is_tiebreaker: true,
         scores: {
           yourScore: match.scores[player1Id],
-          opponentScore: match.scores[player2Id]
-        }
+          opponentScore: match.scores[player2Id],
+        },
       });
       io.to(match.player2.socket.id).emit("tiebreaker_result", {
         winnerId: player1Id,
@@ -309,13 +394,15 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
         is_tiebreaker: true,
         scores: {
           yourScore: match.scores[player2Id],
-          opponentScore: match.scores[player1Id]
-        }
+          opponentScore: match.scores[player1Id],
+        },
       });
       endMatch(io, match, player1Id);
     } else {
-      console.log(`❌ TIEBREAKER | Player 1 answered incorrectly (no points) - Player 2 gets a chance`);
-      
+      console.log(
+        `❌ TIEBREAKER | Player 1 answered incorrectly (no points) - Player 2 gets a chance`
+      );
+
       // Player 1 answered wrong - give Player 2 a chance to answer
       io.to(match.player2.socket.id).emit("prompt_answer", {
         current_round: "tiebreaker round",
@@ -325,8 +412,8 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
         timeRemaining: 5,
         scores: {
           yourScore: match.scores[player2Id],
-          opponentScore: match.scores[player1Id]
-        }
+          opponentScore: match.scores[player1Id],
+        },
       });
 
       // Set a 5-second timeout for Player 2 to answer
@@ -339,27 +426,27 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
 
           io.to(match.player1.socket.id).emit("tiebreaker_result", {
             winnerId: null,
-            result: 'draw',
-            reason: 'Player 2 did not answer within time limit',
+            result: "draw",
+            reason: "Player 2 did not answer within time limit",
             current_round: "tiebreaker round",
             total_rounds: match.rounds,
             is_tiebreaker: true,
             scores: {
               yourScore: match.scores[player1Id],
-              opponentScore: match.scores[player2Id]
-            }
+              opponentScore: match.scores[player2Id],
+            },
           });
           io.to(match.player2.socket.id).emit("tiebreaker_result", {
             winnerId: null,
-            result: 'draw',
-            reason: 'You did not answer within time limit',
+            result: "draw",
+            reason: "You did not answer within time limit",
             current_round: "tiebreaker round",
             total_rounds: match.rounds,
             is_tiebreaker: true,
             scores: {
               yourScore: match.scores[player2Id],
-              opponentScore: match.scores[player1Id]
-            }
+              opponentScore: match.scores[player1Id],
+            },
           });
           endMatch(io, match, null);
         }
@@ -383,8 +470,10 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
       console.log(
         "🏆 TIEBREAKER | Player 2 answered correctly (+1 point) - Player 2 wins!"
       );
-      console.log(`📊 UPDATED SCORES | Player 1: ${match.scores[player1Id]} | Player 2: ${match.scores[player2Id]}`);
-      
+      console.log(
+        `📊 UPDATED SCORES | Player 1: ${match.scores[player1Id]} | Player 2: ${match.scores[player2Id]}`
+      );
+
       io.to(match.player1.socket.id).emit("tiebreaker_result", {
         winnerId: player2Id,
         current_round: "tiebreaker round",
@@ -392,8 +481,8 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
         is_tiebreaker: true,
         scores: {
           yourScore: match.scores[player1Id],
-          opponentScore: match.scores[player2Id]
-        }
+          opponentScore: match.scores[player2Id],
+        },
       });
       io.to(match.player2.socket.id).emit("tiebreaker_result", {
         winnerId: player2Id,
@@ -402,40 +491,131 @@ function handleTiebreakerAnswer(io, match, playerId, answer) {
         is_tiebreaker: true,
         scores: {
           yourScore: match.scores[player2Id],
-          opponentScore: match.scores[player1Id]
-        }
+          opponentScore: match.scores[player1Id],
+        },
       });
       endMatch(io, match, player2Id);
     } else {
-      console.log("🤝 TIEBREAKER | Player 2 answered wrong (no points) - it's a draw!");
+      console.log(
+        "🤝 TIEBREAKER | Player 2 answered wrong (no points) - it's a draw!"
+      );
       io.to(match.player1.socket.id).emit("tiebreaker_result", {
         winnerId: null,
-        result: 'draw',
-        reason: 'Both players answered incorrectly',
+        result: "draw",
+        reason: "Both players answered incorrectly",
         current_round: "tiebreaker round",
         total_rounds: match.rounds,
         is_tiebreaker: true,
         scores: {
           yourScore: match.scores[player1Id],
-          opponentScore: match.scores[player2Id]
-        }
+          opponentScore: match.scores[player2Id],
+        },
       });
       io.to(match.player2.socket.id).emit("tiebreaker_result", {
         winnerId: null,
-        result: 'draw',
-        reason: 'Both players answered incorrectly',
+        result: "draw",
+        reason: "Both players answered incorrectly",
         current_round: "tiebreaker round",
         total_rounds: match.rounds,
         is_tiebreaker: true,
         scores: {
           yourScore: match.scores[player2Id],
-          opponentScore: match.scores[player1Id]
-        }
+          opponentScore: match.scores[player1Id],
+        },
       });
       endMatch(io, match, null);
     }
     match.tiebreakerAnswered = true;
   }
+}
+
+/**
+ * يبدأ العد التنازلي للجولة التالية
+ */
+function startNextRoundCountdown(io, match) {
+  // إرسال رسالة "الجولة التالية"
+  io.to(match.player1.socket.id).emit("next_round_message", {
+    message: "الجولة التالية",
+  });
+  io.to(match.player2.socket.id).emit("next_round_message", {
+    message: "الجولة التالية",
+  });
+
+  // العد التنازلي: 3، 2، 1
+  setTimeout(() => {
+    io.to(match.player1.socket.id).emit("countdown", { count: 3 });
+    io.to(match.player2.socket.id).emit("countdown", { count: 3 });
+
+    setTimeout(() => {
+      io.to(match.player1.socket.id).emit("countdown", { count: 2 });
+      io.to(match.player2.socket.id).emit("countdown", { count: 2 });
+
+      setTimeout(() => {
+        io.to(match.player1.socket.id).emit("countdown", { count: 1 });
+        io.to(match.player2.socket.id).emit("countdown", { count: 1 });
+
+        // بعد العد التنازلي، متابعة السؤال التالي
+        setTimeout(() => {
+          continueToNextQuestion(io, match);
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  }, 1000);
+}
+
+/**
+ * Shows answer results to both players
+ */
+function showAnswerResults(io, match) {
+  const currentQuestion = match.questions[match.currentIndex];
+  if (!currentQuestion) return;
+
+  const correctAnswer = currentQuestion.correctAnswer;
+
+  // Send answer results to both players
+  io.to(match.player1.socket.id).emit("answer_result", {
+    correctAnswer: correctAnswer,
+    questionIndex: match.currentIndex,
+    showResults: true,
+  });
+
+  io.to(match.player2.socket.id).emit("answer_result", {
+    correctAnswer: correctAnswer,
+    questionIndex: match.currentIndex,
+    showResults: true,
+  });
+}
+
+/**
+ * Continue to the next question after showing results
+ */
+function continueToNextQuestion(io, match) {
+  // Process current question answers (this was previously in proceedToNextQuestion)
+  const currentQuestion = match.questions[match.currentIndex];
+  if (!currentQuestion) return;
+
+  // Calculate score based on answers and timing
+  calculateScores(match);
+
+  // Check if end of round
+  if (match.currentIndex >= match.questions.length - 1) {
+    // End of round or match
+    handleRoundEnd(io, match);
+  } else {
+    // Move to next question
+    match.currentIndex++;
+    match.player1Answer = null;
+    match.player2Answer = null;
+    match.player1AnswerTime = null;
+    match.player2AnswerTime = null;
+    match.questionStartTime = Date.now();
+
+    // Send next question
+    sendNextQuestion(io, match);
+  }
+
+  // Update match in database
+  matchService.updateMatch(match.id, match);
 }
 
 // endMatch function has been moved to utils/gameUtils.js
@@ -444,4 +624,8 @@ module.exports = {
   handleAnswer,
   proceedToNextQuestion: proceedToNextQuestion,
   handleTiebreakerAnswer,
+  startNextRoundCountdown,
+  continueToNextQuestion,
+  moveToNextQuestion,
+  showAnswerResults,
 };
